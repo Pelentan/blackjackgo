@@ -1,0 +1,29 @@
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build output
+/blackjackgo
+
+# Test binary
+*.test
+
+# Go coverage output
+*.out
+
+# Dependency directories 
+vendor/
+
+# IDE/editor cruft
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS junk
+.DS_Store
+Thumbs.db

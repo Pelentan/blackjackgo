@@ -6,8 +6,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
+	"time"
 
-	"github.com/yourusername/blackjackgo/game"
+	"github.com/Pelentan/blackjackgo/game"
 )
 
 func main() {
@@ -18,11 +20,30 @@ func main() {
 	playerName, _ := reader.ReadString('\n')
 	playerName = strings.TrimSpace(playerName)
 
-	// Create a new player
+	// Create a new player with the supplied name
 	player := game.NewPlayer(playerName)
-	fmt.Printf("Welcome, %s! You start with $%d.\n", player.Name, player.Bank)
 
-	// Create and shuffle the deck
+	// Went with a template here demonstrate using named placeholders.
+	// While printf is more accepted in Go, I prefer templates for more complext outputs.
+	// Primarily because it makes it an easier read for someone who has to review the code.
+	// Like me in a week trying to figure out what in the world was I _thiking_!
+	tmpl := "Welcome, {{.Name}}! You start with ${{.Bank}}.\n"
+
+	// Template for the Welcome message.
+	t, err := template.New("welcome").Parse(tmpl)
+	if err != nil {
+		fmt.Println("Error parsing template:", err)
+		return
+	}
+
+	// Execute the template with the player data and print the result to stdout.
+	err = t.Execute(os.Stdout, player)
+	if err != nil {
+		fmt.Println("Error executing template:", err)
+		return
+	}
+
+	// Create and shuffle the deck.
 	deck := game.NewDeck()
 	deck.ShuffleDeck()
 
@@ -46,61 +67,75 @@ func main() {
 		playerHand = append(playerHand, deck.DealCard(), deck.DealCard())
 		dealerHand = append(dealerHand, deck.DealCard(), deck.DealCard())
 
-		fmt.Printf("Your hand: %v\n", playerHand)
-		fmt.Printf("Dealer's visible card: %v\n", dealerHand[0])
+		fmt.Printf("\nYour hand: %v\n", playerHand)
+		fmt.Printf("Total: %v\n\n", playerHand.CountCards())
+		fmt.Printf("Dealer's visible card: %v\n\n", dealerHand[0])
 
-		// Player's turn
+		// Label for the outer for loop to allow a simple "break" anywhere in the process.
+	playerTurn:
 		for {
-			fmt.Print("Do you want to (H)it, (S)tand, or (Q)uit? ")
+			// Determine the player's action
+			fmt.Print("Do you want to (H)it or (S)tand ")
 			actionInput, _ := reader.ReadString('\n')
+
+			// I want to take a minute to point out the ToUpper call in the below line.
+			// I _still_ run into code that doesn't normalize the input before testing it
+			// against fixed assumptions. But I'm sure no one reading this makes that error.
+			// Right?
 			action := strings.TrimSpace(strings.ToUpper(actionInput))
 
+			// Process the player's action
 			switch action {
 			case "H":
 				playerHand = append(playerHand, deck.DealCard())
+				currentCount := playerHand.CountCards()
 				fmt.Printf("Your hand: %v\n", playerHand)
-				if game.CalculateScore(playerHand) > 21 {
+				fmt.Printf("Total: %v\n", currentCount)
+				if currentCount > 21 {
 					fmt.Println("Bust! You lose.")
 					player.Bank -= bet
 					player.Losses++
-					break
+					break playerTurn
 				}
-			case "S":
-				dealerScore := game.CalculateScore(dealerHand)
-				for dealerScore < 17 {
+			case "S": // Time to see who wins
+				dealerCount := dealerHand.CountCards()
+				playerCount := playerHand.CountCards()
+
+				// Dealer must keep taking cards until they hit 17
+				for dealerCount < 17 {
 					dealerHand = append(dealerHand, deck.DealCard())
-					dealerScore = game.CalculateScore(dealerHand)
+					dealerCount = dealerHand.CountCards()
 				}
 
-				playerScore := game.CalculateScore(playerHand)
+				fmt.Printf("Your hand: %v \nTotal: %d\n\n", playerHand, playerCount)
+				fmt.Printf("Dealer's hand: %v \nTotal: %d\n\n", dealerHand, dealerCount)
+				fmt.Print("Calculating winner...\n\n")
 
-				fmt.Printf("Your hand: %v (Total: %d)\n", playerHand, playerScore)
-				fmt.Printf("Dealer's hand: %v (Total: %d)\n", dealerHand, dealerScore)
+				// Wait for it!!!
+				time.Sleep(3 * time.Second)
 
-				if dealerScore > 21 || playerScore > dealerScore {
+				if dealerCount > 21 || playerCount > dealerCount {
 					fmt.Println("You win!")
 					player.Bank += bet
 					player.Wins++
-				} else if playerScore < dealerScore {
-					fmt.Println("You lose.")
+				} else if playerCount < dealerCount {
+					fmt.Println("You lost.")
 					player.Bank -= bet
 					player.Losses++
 				} else {
-					fmt.Println("It's a tie!")
+					fmt.Println("Push")
 				}
-				break
-			case "Q":
-				fmt.Println("Thanks for playing!")
-				return
+				break playerTurn
 			default:
-				fmt.Println("Invalid action. Please enter H, S, or Q.")
+				fmt.Println("Juuust a little bit not valid. Please enter H or S.")
 			}
-			// Check if the deck is running low and reshuffle if necessary
-			if len(deck) < 10 {
-				fmt.Println("Deck is running low. Reshuffling...")
-				deck = game.NewDeck()
-				deck.ShuffleDeck()
-			}
+		}
+
+		// Check if the deck is running low and reshuffle if necessary
+		if len(deck) < 10 {
+			fmt.Println("Deck is running low. <shuffle, shuffle, shuffle>")
+			deck = game.NewDeck()
+			deck.ShuffleDeck()
 		}
 
 		// Ask if the player wants to play another hand
@@ -114,7 +149,7 @@ func main() {
 	}
 
 	// Game over summary
-	fmt.Printf("\nGame Over!\n")
+	fmt.Printf("\nThank you for playing!\n")
 	fmt.Printf("You won %d hands and lost %d hands.\n", player.Wins, player.Losses)
 	fmt.Printf("Final bank balance: $%d\n", player.Bank)
 }

@@ -1,25 +1,32 @@
 package game
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 )
 
 type Card struct {
 	Suit  string
+	Face  string
 	Value int
+}
+
+func (c Card) String() string {
+	return fmt.Sprintf("|%s of %s|", c.Face, c.Suit)
 }
 
 type Deck []Card
 
 var cardSuits = []string{"Hearts", "Diamonds", "Clubs", "Spades"}
 var cardValues = []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11}
+var cardFaces = []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"}
 
 func NewDeck() Deck {
 	deck := make(Deck, 0)
 	for _, suit := range cardSuits {
-		for _, value := range cardValues {
-			deck = append(deck, Card{Suit: suit, Value: value})
+		for i, face := range cardFaces {
+			deck = append(deck, Card{Suit: suit, Face: face, Value: cardValues[i]})
 		}
 	}
 	return deck
@@ -36,7 +43,7 @@ func (d *Deck) ShuffleDeck() {
 func (d *Deck) DealCard() Card {
 	if len(*d) == 0 {
 		return Card{}
-	}
+	} // I put this in as crash-protection.  But it's not tested for by the callers.
 	card := (*d)[0]
 	*d = (*d)[1:]
 	return card
